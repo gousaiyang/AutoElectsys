@@ -1,0 +1,5 @@
+Version: ChromeDriver v2.30
+Update Date: 2017-06-07
+Supports: Chrome v58-60
+-----------------------------------------------------------------------------
+Get update at: https://sites.google.com/a/chromium.org/chromedriver/downloads
