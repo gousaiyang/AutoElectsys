@@ -166,19 +166,8 @@ class AutoElectsys:
 
             self.electsys_pp_on = False
 
-        except ConfigParser.NoSectionError:
-            self.error_exit(u'错误：配置文件出现错误，请使用配置器检查并修复！')
-
-        except ConfigParser.DuplicateSectionError:
-            self.error_exit(u'错误：配置文件出现错误，请使用配置器检查并修复！')
-
-        except ConfigParser.NoOptionError:
-            self.error_exit(u'错误：配置文件出现错误，请使用配置器检查并修复！')
-
-        except ConfigParser.ParsingError:
-            self.error_exit(u'错误：配置文件出现错误，请使用配置器检查并修复！')
-
-        except ConfigParser.MissingSectionHeaderError:
+        except (ConfigParser.NoSectionError, ConfigParser.DuplicateSectionError, ConfigParser.NoOptionError,
+            ConfigParser.ParsingError, ConfigParser.MissingSectionHeaderError):
             self.error_exit(u'错误：配置文件出现错误，请使用配置器检查并修复！')
 
     def init_webdriver(self):
@@ -222,10 +211,7 @@ class AutoElectsys:
             captchabox.send_keys('\n')
             return True
 
-        except NoSuchElementException:
-            self.error_exit(u'错误：无法获取页面元素，请检查您的网络是否畅通。')
-
-        except TimeoutException:
+        except (NoSuchElementException, TimeoutException):
             self.error_exit(u'错误：无法获取页面元素，请检查您的网络是否畅通。')
 
     def login(self):
@@ -275,10 +261,7 @@ class AutoElectsys:
                 write_log('错误：登录教学信息服务网失败！')
                 self.error_exit()
 
-        except NoSuchElementException:
-            self.error_exit(u'错误：无法获取页面元素，请检查您的网络是否畅通。')
-
-        except TimeoutException:
+        except (NoSuchElementException, TimeoutException):
             self.error_exit(u'错误：无法获取页面元素，请检查您的网络是否畅通。')
 
     def readme(self):
@@ -323,10 +306,7 @@ class AutoElectsys:
             continue_button = self.driver.find_element_by_xpath(u'//input[@value="继续"]')
             continue_button.click()
 
-        except NoSuchElementException:
-            self.error_exit(u'错误：无法获取页面元素，请检查您的网络是否畅通。')
-
-        except TimeoutException:
+        except (NoSuchElementException, TimeoutException):
             self.error_exit(u'错误：无法获取页面元素，请检查您的网络是否畅通。')
 
     def locate_course_page(self):
@@ -390,15 +370,7 @@ class AutoElectsys:
                 else:
                     self.error_exit(u'错误：无效的一级分类！')
 
-            except NoSuchElementException:
-                print u'错误：无法获取页面元素！\n'
-                print u'这可能是以下2种原因导致的：'
-                print u'(1)您输入的定位信息不正确。'
-                print u'(2)网络不畅通。'
-                write_log('错误：自动定位阶段无法获取页面元素。')
-                self.error_exit()
-
-            except TimeoutException:
+            except (NoSuchElementException, TimeoutException):
                 print u'错误：无法获取页面元素！\n'
                 print u'这可能是以下2种原因导致的：'
                 print u'(1)您输入的定位信息不正确。'
@@ -477,15 +449,7 @@ class AutoElectsys:
             alert_msg(u'提示', u'已提交选课%s！' % (self.course_id))
             return True
 
-        except NoSuchElementException:
-            print u'错误：无法获取页面元素！\n'
-            print u'这可能是以下2种原因导致的：'
-            print u'(1)定位的页面不正确。'
-            print u'(2)网络不畅通。'
-            write_log('错误：自动选课阶段无法获取页面元素。')
-            self.error_exit()
-
-        except TimeoutException:
+        except (NoSuchElementException, TimeoutException):
             print u'错误：无法获取页面元素！\n'
             print u'这可能是以下2种原因导致的：'
             print u'(1)定位的页面不正确。'
