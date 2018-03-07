@@ -1,5 +1,5 @@
-Version: ChromeDriver v2.34
-Update Date: 2017-12-10
-Supports: Chrome v61-63
+Version: ChromeDriver v2.36
+Update Date: 2018-03-06
+Supports: Chrome v64-66
 -----------------------------------------------------------------------------
 Get update at: https://sites.google.com/a/chromium.org/chromedriver/downloads
