@@ -149,7 +149,7 @@ class AutoElectsys:
 
     def init_webdriver(self):
         options = webdriver.ChromeOptions()
-        options.add_argument('--log-level=3')  # TODO: Remove 'DevTools listening on...'
+        options.add_argument('--log-level=3')
         options.add_argument('--disable-logging')
         options.add_argument('--silent')
         options.add_experimental_option('excludeSwitches', ['ignore-certificate-errors'])
@@ -165,7 +165,7 @@ class AutoElectsys:
 
         self.driver = webdriver.Chrome(webdriver_path, options=options, service_log_path=os.devnull)
         self.driver.maximize_window()
-        self.wait = WebDriverWait(self.driver, 24 * 3600)  # Infinite wait
+        self.wait = WebDriverWait(self.driver, 24 * 3600)  # Infinite wait.
 
     def get_user_and_pass(self):
         try:
@@ -375,7 +375,7 @@ class AutoElectsys:
 
                 try:
                     self.driver.find_element_by_css_selector('input[value="选定此教师"]')
-                except NoSuchElementException:  # Bad page, try again.
+                except NoSuchElementException:
                     logger.debug('查看课程安排时页面错误，即将重试。')
                 else:
                     status = self.check_status()
@@ -390,7 +390,7 @@ class AutoElectsys:
 
                         try:
                             self.driver.find_element_by_css_selector('input[value="选课提交"]')
-                        except NoSuchElementException:  # If bad page, try again.
+                        except NoSuchElementException:
                             logger.debug('选定教师时页面错误，即将重试。')
                             self.driver.back()
                         else:
