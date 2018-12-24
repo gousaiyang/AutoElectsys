@@ -1,5 +1,8 @@
 import json
 import platform
+import re
+import tkinter as tk
+from tkinter import messagebox
 
 current_os = platform.system()
 is_windows = current_os == 'Windows'
@@ -8,6 +11,11 @@ is_64bit = '64' in platform.machine()
 
 config_file_name = 'config.json'
 pswd_file_name = 'jaccount.pswd'
+log_file_name = 'AutoElectsys.log'
+dependency_dir = 'dependency'
+
+course_rounds = ('其他', '海选', '抢选', '第三轮选课', '小学期海选', '小学期抢选', '小学期第三轮选课')
+first_categories = ('必修课', '限选课', '通识课', '任选课', '新生研讨课')
 
 
 def file_read_content(filename):
@@ -63,8 +71,19 @@ def remove_utf8_bom(filename):
     file_write_content(filename, content[3:])
 
 
+def remove_whitespace(s):
+    return re.sub(r'\s', '', s)
+
+
 def is_positive_int(s):
     try:
         return int(s) > 0
     except Exception:
         return False
+
+
+def alert_msg(title, content):
+    root = tk.Tk()
+    root.withdraw()
+    messagebox.showinfo(title, content)
+    root.destroy()

@@ -1,291 +1,261 @@
-# -*- coding: utf-8 -*-
-
-import time
-import datetime
-import os
-import ConfigParser
 import base64
+import datetime
+import logging
+import os
+import pathlib
 import re
+import sys
+import time
+import traceback
 
-import platform
-current_system = platform.system()
-is_windows = current_system == 'Windows'
-is_mac = current_system == 'Darwin'
-is_64 = '64' in platform.machine()
+import colorlabels as cl
+from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver.support.wait import WebDriverWait
 
-config_file_name = 'AutoElectsys.ini'
-pswd_file_name = 'jaccount.pswd'
-log_file_name = 'AutoElectsys.log'
+from AutoElectsysUtil import (alert_msg, config_file_name, course_rounds, dependency_dir, file_read_json,
+                              file_read_lines, is_64bit, is_mac, is_windows, log_file_name, pswd_file_name,
+                              remove_utf8_bom, remove_whitespace)
 
-try:
-    log = open(log_file_name, 'a')
-except:
-    print u'错误：无法打开或创建日志文件！\n'
-    print u'请按Enter键退出...',
-    raw_input()
-    raise SystemExit
-
-def write_log(message):
-    log.write(time.strftime('%Y-%m-%d %H:%M:%S '))
-    log.write(message)
-    log.write('\n')
-
-def print_and_log(s):
-    print s
-    write_log(s.encode('UTF-8'))
+os.chdir(os.path.dirname(os.path.realpath(sys.argv[0])))
 
 try:
-    from selenium import webdriver
-    from selenium.webdriver.support.wait import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
-    from selenium.webdriver.support.ui import Select
-    from selenium.common.exceptions import NoSuchElementException
-    from selenium.common.exceptions import TimeoutException
-    from selenium.webdriver.common.by import By
-    webdriver_wait_time = 10
-    if is_windows:
-        webdriver_dir = './dependency/chromedriver_win32.exe'
-    elif is_mac:
-        webdriver_dir = './dependency/chromedriver_mac64'
-    elif is_64:
-        webdriver_dir = './dependency/chromedriver_linux64'
-    else:
-        webdriver_dir = './dependency/chromedriver_linux32'
-except ImportError:
-    print u'错误：您的 Python 未安装 selenium 库，请安装 selenium 库后继续使用本程序！\n'
-    print u'请按Enter键退出...',
-    raw_input()
-    raise SystemExit
+    logger = logging.getLogger('AutoElectsys')
+    file_handler = logging.FileHandler(log_file_name, encoding='utf-8')
+    file_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s]: %(message)s'))
+    logger.addHandler(file_handler)
+    logger.setLevel(logging.DEBUG)
+except Exception:
+    traceback.print_exc()
+    cl.error('错误：无法打开或创建日志文件！')
+    cl.input('请按 Enter 键退出...')
+    sys.exit(1)
 
-def WaitForElement(driver, by, s):
-    return WebDriverWait(driver, timeout = webdriver_wait_time).until(EC.presence_of_element_located((by, s)))
+
+def print_and_log_info(msg):
+    cl.info(msg)
+    logger.info(msg)
+
+
+def print_and_log_warning(msg):
+    cl.warning(msg)
+    logger.warning(msg)
+
+
+if is_windows:
+    webdriver_path = os.path.join(dependency_dir, 'chromedriver_win32.exe')
+elif is_mac:
+    webdriver_path = os.path.join(dependency_dir, 'chromedriver_mac64')
+elif is_64bit:
+    webdriver_path = os.path.join(dependency_dir, 'chromedriver_linux64')
+else:
+    webdriver_path = os.path.join(dependency_dir, 'chromedriver_linux32')
+
 
 def get_user_data_dir():
     if is_windows:
-        s = os.getenv('LOCALAPPDATA') + '\\Google\\Chrome\\User Data'
+        s = os.path.expanduser('~\\AppData\\Local\\Google\\Chrome\\User Data')
     elif is_mac:
-        s = os.getenv('HOME') + '/Library/Application Support/Google/Chrome'
+        s = os.path.expanduser('~/Library/Application Support/Google/Chrome')
     else:
-        s = os.getenv('HOME') + '/.config/google-chrome'
-    if os.path.isdir(s):
-        return s
-    else:
-        return ''
+        s = os.path.expanduser('~/.config/google-chrome')
 
-jHelper_dir = './dependency/SJTU-jAccount-Login-Helper_v0.3.1.crx'
+    return s if os.path.isdir(s) else None
+
+
+jHelper_path = os.path.join(dependency_dir, 'SJTU-jAccount-Login-Helper_v0.3.1.crx')
 jHelper_id = 'ihchdleonhejkpdkmahiejaabcpkkicj'
 
+
 def jHelper_installed(base_dir):
-    ext_dir = base_dir.replace('\\', '/') + '/Default/Extensions/' + jHelper_id
-    return os.path.isdir(ext_dir)
+    return (pathlib.Path(base_dir) / 'Default/Extensions' / jHelper_id).is_dir()
 
-def remove_white_space(s):
-    return s.replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
-
-def to_utf8(s):
-    if is_windows:
-        return s.decode('GB2312').encode('UTF-8')
-    else:
-        return s
-
-def fix_utf8(filename):
-    try:
-        f = open(filename, 'r')
-        s = f.read(3)
-        if s != '\xef\xbb\xbf':
-            f.close()
-            return
-        s = f.read()
-        f.close()
-        f = open(filename, 'w')
-        f.write(s)
-        f.close()
-    except:
-        pass
-
-try:
-    import Tkinter
-    import tkMessageBox
-    tkinter_available = True
-except ImportError:
-    tkinter_available = False
-    print u'注意：您的 Python 未安装 Tkinter 库，选课提交后将无法出现弹窗提示。\n'
-
-def alert_msg(title, content):
-    if tkinter_available:
-        root = Tkinter.Tk()
-        root.withdraw()
-        tkMessageBox.showinfo(title, content)
-        root.destroy()
 
 class AutoElectsys:
     def __init__(self):
-        print u'SJTU AutoElectsys\n'
-        print u'初始化中...'
-        write_log('启动程序。')
+        cl.section('SJTU AutoElectsys')
+        cl.progress('初始化中...')
+        logger.info('启动程序。')
         self.init_config()
         self.init_webdriver()
-        print '\n'         
 
     def init_config(self):
+        self.driver = None
+        self.logged_in = False
+        self.electsys_pp_on = False
+
         try:
-            self.logged_in = False
+            remove_utf8_bom(config_file_name)
+        except Exception:
+            self.error_exit('错误：无法写入配置文件！')
 
-            if is_windows:
-                fix_utf8(config_file_name)
+        try:
+            config = file_read_json(config_file_name)
 
-            cf = ConfigParser.ConfigParser()
-            cf.read(config_file_name)
+            self.password_saved = config['Login']['password_saved']
+            assert isinstance(self.password_saved, bool)
 
-            self.password_saved = bool(cf.getint('Login', 'password_saved'))
             self.user_data = self.password_saved
+
             if self.user_data:
                 self.user_data_dir = get_user_data_dir()
-                if self.user_data_dir == '':
-                    self.error_exit(u'错误：找不到 Chrome 用户文件夹，请确认 Chrome 是否正常安装。')
-            self.autocaptcha_on = bool(cf.getint('Login', 'auto_captcha'))
-            self.relogin_interval = cf.getint('Login', 'relogin_interval')
+
+                if not self.user_data_dir:
+                    self.error_exit('错误：找不到 Chrome 用户文件夹，请确认 Chrome 是否正常安装。', with_exc_info=False)
+
+            self.autocaptcha_on = config['Login']['auto_captcha']
+            assert isinstance(self.autocaptcha_on, bool)
+
+            self.relogin_interval = config['Login']['relogin_interval']
+            assert isinstance(self.relogin_interval, int) and self.relogin_interval >= 0
+
             self.auto_relogin = self.relogin_interval > 0
 
-            self.course_id = cf.get('CourseInfo', 'course_id')
-            self.teacher_row = cf.getint('CourseInfo', 'teacher_row')
+            self.course_id = config['CourseInfo']['course_id']
+            assert isinstance(self.course_id, str) and re.fullmatch('[A-Za-z0-9]*', self.course_id)
 
-            self.round = cf.getint('CourseLocate', 'round')
-            self.auto_locate = bool(cf.getint('CourseLocate', 'auto_locate'))
+            self.teacher_row = config['CourseInfo']['teacher_row']
+            assert isinstance(self.teacher_row, int) and self.teacher_row > 0
+
+            self.round = config['CourseLocate']['round']
+            assert isinstance(self.round, int) and self.round in range(0, 7)
+
+            self.auto_locate = config['CourseLocate']['auto_locate']
+            assert isinstance(self.auto_locate, bool)
+
             if (not self.autocaptcha_on or not self.auto_locate) and self.auto_relogin:
-                self.error_exit(u'无效配置项：自动重新登录需要自动识别验证码，并开启选课页面自动定位功能。')
+                self.error_exit('无效配置项：自动重新登录需要自动识别验证码，并开启选课页面自动定位功能。', with_exc_info=False)
+
             if self.auto_locate:
                 if self.round == 0:
-                    self.error_exit(u'无效配置项：自动定位选课页面不支持“其他”选课轮次。')
-                self.first_category = cf.getint('CourseLocate', 'first_category')
-                if self.first_category in [2, 3, 4]:
-                    self.second_category = cf.get('CourseLocate', 'second_category')
+                    self.error_exit('无效配置项：自动定位选课页面不支持“其他”选课轮次。', with_exc_info=False)
 
-            self.sleep_time = cf.getint('Miscellaneous', 'sleep_time')
+                self.first_category = config['CourseLocate']['first_category']
+                assert isinstance(self.first_category, int) and self.first_category in (1, 2, 3, 4, 5)
+
+                if self.first_category in (2, 3, 4):
+                    self.second_category = config['CourseLocate']['second_category']
+                    assert isinstance(self.second_category, str)
+
+            self.sleep_time = config['Miscellaneous']['sleep_time']
+            assert isinstance(self.sleep_time, int) and self.sleep_time > 0
+            self.sleep_time /= 1000
+
             self.browse_only = self.course_id == ''
-
-            self.electsys_pp_on = False
-
-        except (ConfigParser.NoSectionError, ConfigParser.DuplicateSectionError, ConfigParser.NoOptionError,
-            ConfigParser.ParsingError, ConfigParser.MissingSectionHeaderError):
-            self.error_exit(u'错误：配置文件出现错误，请使用配置器检查并修复！')
+        except Exception:
+            self.error_exit('错误：配置文件出现错误，请使用配置器检查并修复！')
 
     def init_webdriver(self):
         options = webdriver.ChromeOptions()
+        options.add_argument('--log-level=3')  # TODO: Remove 'DevTools listening on...'
+        options.add_argument('--disable-logging')
+        options.add_argument('--silent')
         options.add_experimental_option('excludeSwitches', ['ignore-certificate-errors'])
+
         if self.user_data:
-            options.add_argument('user-data-dir=' + to_utf8(self.user_data_dir))
+            options.add_argument('user-data-dir=' + self.user_data_dir)
+
             if self.autocaptcha_on and not jHelper_installed(self.user_data_dir):
-                options.add_extension(jHelper_dir)
+                options.add_extension(jHelper_path)
         else:
             if self.autocaptcha_on:
-                options.add_extension(jHelper_dir)
-        self.driver = webdriver.Chrome(webdriver_dir, chrome_options = options)
+                options.add_extension(jHelper_path)
+
+        self.driver = webdriver.Chrome(webdriver_path, options=options, service_log_path=os.devnull)
         self.driver.maximize_window()
+        self.wait = WebDriverWait(self.driver, 24 * 3600)  # Infinite wait
 
     def get_user_and_pass(self):
         try:
-            faccount = open(pswd_file_name, 'r')
-            username = faccount.readline()
-            password = faccount.readline()
-            username = username.replace('\n', '')
-            password = base64.decodestring(password.replace('\n', ''))
+            username, password = file_read_lines(pswd_file_name)
+            password = base64.b85decode(password).decode()
             return username, password
-        except:
-            self.error_exit(u'错误：读取账号信息文件失败！')
+        except Exception:
+            self.error_exit('错误：读取账号信息文件失败！')
+
+    def wait_for_page_load(self):
+        self.wait.until(lambda driver: driver.execute_script('return document.readyState == "complete"'))
 
     def auto_input_captcha(self):
         try:
-            title = WaitForElement(self.driver, By.XPATH, '//title')
-            result = re.findall(r'<img src="([^"]*)"', self.driver.page_source)
-            captcha_src = ''
-            for item in result:
+            for item in re.findall(r'<img src="(.*?)"', self.driver.page_source):
                 if 'captcha' in item:
                     captcha_src = item
-            if captcha_src == '':
-                self.error_exit(u'错误：无法获取页面元素，请检查您的网络是否畅通。')
-            captchapic = WaitForElement(self.driver, By.XPATH, '//img[@src="%s"]' % (captcha_src))
-            captchapic.click()
-            time.sleep(0.5)
-            captchabox = WaitForElement(self.driver, By.ID, 'captcha')
-            captchabox.send_keys('\n')
-            return True
+                    break
+            else:
+                raise NoSuchElementException
 
-        except (NoSuchElementException, TimeoutException):
-            self.error_exit(u'错误：无法获取页面元素，请检查您的网络是否畅通。')
+            self.driver.find_element_by_css_selector('img[src="%s"]' % captcha_src).click()
+            time.sleep(0.5)
+            self.driver.find_element_by_id('captcha').send_keys('\n')
+            self.wait_for_page_load()
+        except NoSuchElementException:
+            self.error_exit('错误：自动输入验证码过程中无法获取页面元素。')
 
     def login(self):
+        if not self.password_saved:
+            username, password = self.get_user_and_pass()
+
         try:
-            if not self.password_saved:
-                username, password = self.get_user_and_pass()
             flag = True
             self.driver.get('http://electsys.sjtu.edu.cn/edu/login.aspx')
+
             while flag:
+                if '对不起，您的Jaccount帐号没有对应交大正式学生学号或教师工号，不能登陆！' in self.driver.page_source:
+                    logger.debug('登录过程中页面错误，即将重试。')
+                    time.sleep(3)
+                    self.driver.get('http://electsys.sjtu.edu.cn/edu/login.aspx')
+                    continue
+
                 if not self.password_saved:
-                    userbox = WaitForElement(self.driver, By.ID, 'user')
+                    userbox = self.driver.find_element_by_id('user')
                     userbox.clear()
                     userbox.send_keys(username)
-                    passbox = WaitForElement(self.driver, By.ID, 'pass')
+                    passbox = self.driver.find_element_by_id('pass')
                     passbox.clear()
                     passbox.send_keys(password)
+
                 if self.autocaptcha_on:
-                    flag = not self.auto_input_captcha()
-                    if flag:
-                        self.driver.get('http://electsys.sjtu.edu.cn/edu/login.aspx')
-                        continue
-                    title = WaitForElement(self.driver, By.XPATH, '//title')
+                    self.auto_input_captcha()
                 else:
-                    print u'请输入验证码并成功登录后再按 Enter 键继续...',
-                    raw_input()
-                    print
-                flag = u'请正确填写验证码' in self.driver.page_source
-            if self.driver.title == u'上海交通大学教学信息服务网－学生服务平台':
-                print_and_log(u'成功登录教学信息服务网。')
-                print
+                    cl.info('请在网页中输入验证码并登录，成功登录后程序会自动继续。')
+                    self.wait.until(EC.url_contains('electsys.sjtu.edu.cn'))
+                    self.wait_for_page_load()
+
+                flag = '请正确填写验证码' in self.driver.page_source
+
+            if self.driver.title == '上海交通大学教学信息服务网－学生服务平台':
+                cl.success('成功登录教学信息服务网。')
+                logger.info('成功登录教学信息服务网。')
                 self.logged_in = True
+
                 if self.auto_relogin:
                     self.t1 = datetime.datetime.now()
-                self.electsys_pp_on = 'Optimized by electsys++' in self.driver.page_source
-                now_handle = self.driver.current_window_handle
-                all_handles = self.driver.window_handles
-                for handle in all_handles:
-                    if handle != now_handle:
-                        self.driver.switch_to_window(handle)
-                        self.driver.close()
-                self.driver.switch_to_window(now_handle)
-            else:
-                print u'错误：登录教学信息服务网失败！\n'
-                print u'这可能是以下2种原因导致的：'
-                print u'(1)您输入的用户名或密码不正确。'
-                print u'(2)网络不畅通。'
-                write_log('错误：登录教学信息服务网失败！')
-                self.error_exit()
 
-        except (NoSuchElementException, TimeoutException):
-            self.error_exit(u'错误：无法获取页面元素，请检查您的网络是否畅通。')
+                self.electsys_pp_on = 'Optimized by electsys++' in self.driver.page_source
+                this_handle = self.driver.current_window_handle
+
+                # Close other windows.
+                for handle in self.driver.window_handles:
+                    if handle != this_handle:
+                        self.driver.switch_to.window(handle)
+                        self.driver.close()
+
+                self.driver.switch_to.window(this_handle)
+            else:
+                self.error_exit('错误：登录教学信息服务网失败！您输入的用户名或密码可能不正确。', with_exc_info=False)
+        except NoSuchElementException:
+            self.error_exit('错误：登录过程中无法获取页面元素。')
 
     def readme(self):
         if self.round == 0:
             return
+
         try:
-            try:
-                if self.round < 1 or self.round > 6:
-                    raise ValueError
-                if self.round == 1:
-                    print_and_log(u'读取到的选课轮次设置：海选。')
-                elif self.round == 2:
-                    print_and_log(u'读取到的选课轮次设置：抢选。')
-                elif self.round == 3:
-                    print_and_log(u'读取到的选课轮次设置：第三轮选课。')
-                elif self.round == 4:
-                    print_and_log(u'读取到的选课轮次设置：暑假小学期海选。')
-                elif self.round == 5:
-                    print_and_log(u'读取到的选课轮次设置：暑假小学期抢选。')
-                else:
-                    print_and_log(u'读取到的选课轮次设置：暑假小学期第三轮选课。')
-            except:
-                print_and_log(u'读取到无效的选课轮次设置，已自动设置为抢选。')
-                self.round = 2
+            print_and_log_info('读取到的选课轮次设置：%s。' % course_rounds[self.round])
+
             if self.round == 1:
                 self.driver.get('http://electsys.sjtu.edu.cn/edu/student/elect/electwarning.aspx?xklc=1')
             elif self.round == 2:
@@ -298,228 +268,223 @@ class AutoElectsys:
                 self.driver.get('http://electsys.sjtu.edu.cn/edu/student/elect/warning.aspx?xklc=2&lb=3')
             else:
                 self.driver.get('http://electsys.sjtu.edu.cn/edu/student/elect/warning.aspx?xklc=3&lb=3')
+
             if self.round > 3:
                 return
-            read_check = WaitForElement(self.driver, By.XPATH, '//input[@type="checkbox"]')
+
+            read_check = self.driver.find_element_by_css_selector('input[type="checkbox"]')
+
             if not read_check.is_selected():
                 read_check.click()
-            continue_button = self.driver.find_element_by_xpath(u'//input[@value="继续"]')
-            continue_button.click()
 
-        except (NoSuchElementException, TimeoutException):
-            self.error_exit(u'错误：无法获取页面元素，请检查您的网络是否畅通。')
+            self.driver.find_element_by_css_selector('input[value="继续"]').click()
+            self.wait_for_page_load()
+        except NoSuchElementException:
+            self.error_exit('错误：阅读选课提示时无法获取页面元素。')
 
     def locate_course_page(self):
-        print u'读取到欲选课程：%s\t教师行数：%d' % (self.course_id, self.teacher_row)
-        write_log('读取到欲选课程：%s，教师行数：%d' % (self.course_id, self.teacher_row))
+        print_and_log_info('读取到欲选课程：%s，教师行数：%d' % (self.course_id, self.teacher_row))
+
         if self.round > 3:
-            print_and_log(u'当前为小学期，无需定位。')
+            print_and_log_info('当前为小学期，无需定位。')
             return
+
         if self.auto_locate:
             try:
-                write_log('自动定位选课页面。')
+                logger.info('自动定位选课页面。')
+
                 if self.electsys_pp_on:
-                    smalltable_container = WaitForElement(self.driver, By.XPATH, '//div[@id="smalltable_container"]')
+                    smalltable_container = self.driver.find_element_by_css_selector('div[id="smalltable_container"]')
+
                     if smalltable_container.get_attribute('style') != 'display: none;':
-                        smalltable_title = self.driver.find_element_by_xpath('//div[@class="smalltable_title"]')
-                        smalltable_title.click()
+                        self.driver.find_element_by_css_selector('div[class="smalltable_title"]').click()
                         time.sleep(1)
+
                 if self.first_category == 1:
                     self.driver.get('http://electsys.sjtu.edu.cn/edu/student/elect/speltyRequiredCourse.aspx')
-                    print_and_log(u'已自动定位到：必修课。')
+                    print_and_log_info('已自动定位到：必修课。')
                 elif self.first_category == 2:
                     self.driver.get('http://electsys.sjtu.edu.cn/edu/student/elect/speltyLimitedCourse.aspx')
-                    submit_button = WaitForElement(self.driver, By.XPATH, u'//input[@value="选课提交"]')
-                    tight_page_source = remove_white_space(self.driver.page_source)
-                    result = re.findall(r'<tr[^<>]*><td[^<>]*><inputid="([^<>]*)"type="radio"[^<>]*/></td><td[^<>]*>([^<>]*)</td>', tight_page_source)
-                    second_button_id = ''
-                    for item in result:
-                        if item[1].encode('UTF-8') == self.second_category:
+                    tight_page_source = remove_whitespace(self.driver.page_source)
+
+                    for item in re.findall(r'<tr.*?><td.*?><inputid="(.*?)"type="radio".*?/></td><td.*?>(.*?)</td>', tight_page_source):
+                        if item[1] == self.second_category:
                             second_button_id = item[0]
                             break
-                    if second_button_id == '':
-                        self.error_exit(u'错误：无效的二级分类！')
-                    second_button = self.driver.find_element_by_xpath('//input[@id="%s"]' % (second_button_id))
-                    second_button.click()
-                    print_and_log(u'已自动定位到：限选课 ' + self.second_category.decode('UTF-8'))
+                    else:
+                        self.error_exit('错误：无效的二级分类！', with_exc_info=False)
+
+                    self.driver.find_element_by_css_selector('input[id="%s"]' % second_button_id).click()
+                    self.wait_for_page_load()
+                    print_and_log_info('已自动定位到：限选课 %s' % self.second_category)
                 elif self.first_category == 3:
                     self.driver.get('http://electsys.sjtu.edu.cn/edu/student/elect/speltyCommonCourse.aspx')
-                    submit_button = WaitForElement(self.driver, By.XPATH, u'//input[@value="选课提交"]')
-                    tight_page_source = remove_white_space(self.driver.page_source)
-                    result = re.findall(r'<tr[^<>]*><td[^<>]*><inputid="([^<>]*)"type="radio"[^<>]*/></td><td[^<>]*>([^<>]*)</td>', tight_page_source)
-                    second_button_id = ''
-                    for item in result:
-                        if item[1].encode('UTF-8') == self.second_category:
+                    tight_page_source = remove_whitespace(self.driver.page_source)
+
+                    for item in re.findall(r'<tr.*?><td.*?><inputid="(.*?)"type="radio".*?/></td><td.*?>(.*?)</td>', tight_page_source):
+                        if item[1] == self.second_category:
                             second_button_id = item[0]
                             break
-                    if second_button_id == '':
-                        self.error_exit(u'错误：无效的二级分类！')
-                    second_button = self.driver.find_element_by_xpath('//input[@id="%s"]' % (second_button_id))
-                    second_button.click()
-                    print_and_log(u'已自动定位到：通识课 ' + self.second_category.decode('UTF-8'))
+                    else:
+                        self.error_exit('错误：无效的二级分类！', with_exc_info=False)
+
+                    self.driver.find_element_by_css_selector('input[id="%s"]' % second_button_id).click()
+                    self.wait_for_page_load()
+                    print_and_log_info('已自动定位到：通识课 %s' % self.second_category)
                 elif self.first_category == 4:
                     self.driver.get('http://electsys.sjtu.edu.cn/edu/student/elect/outSpeltyEP.aspx')
-                    drop_list = WaitForElement(self.driver, By.XPATH, '//select[@id="OutSpeltyEP1_dpYx"]')
+                    drop_list = self.driver.find_element_by_css_selector('select[id="OutSpeltyEP1_dpYx"]')
                     Select(drop_list).select_by_visible_text(self.second_category)
-                    second_button = WaitForElement(self.driver, By.XPATH, u'//input[@value="查 询"]')
-                    second_button.click()
-                    print_and_log(u'已自动定位到：任选课 ' + self.second_category.decode('UTF-8'))
-                elif self.first_category == 5:
-                    self.driver.get('http://electsys.sjtu.edu.cn/edu/student/elect/freshmanLesson.aspx')
-                    print_and_log(u'已自动定位到：新生研讨课')
+                    self.driver.find_element_by_css_selector('input[value="查 询"]').click()
+                    self.wait_for_page_load()
+                    print_and_log_info('已自动定位到：任选课 %s' % self.second_category)
                 else:
-                    self.error_exit(u'错误：无效的一级分类！')
-
-            except (NoSuchElementException, TimeoutException):
-                print u'错误：无法获取页面元素！\n'
-                print u'这可能是以下2种原因导致的：'
-                print u'(1)您输入的定位信息不正确。'
-                print u'(2)网络不畅通。'
-                write_log('错误：自动定位阶段无法获取页面元素。')
-                self.error_exit()
+                    self.driver.get('http://electsys.sjtu.edu.cn/edu/student/elect/freshmanLesson.aspx')
+                    print_and_log_info('已自动定位到：新生研讨课')
+            except NoSuchElementException:
+                self.error_exit('错误：自动定位阶段无法获取页面元素！您输入的定位信息可能不正确。')
         else:
-            write_log('手动定位选课页面。')
-            print u'\n请手动定位到欲选课程所在的页面，然后按 Enter 键继续...',
-            raw_input()
+            logger.info('手动定位选课页面。')
+            cl.input('请手动定位到欲选课程所在的页面，然后按 Enter 键继续...')
 
     def check_status(self):
         try:
             max_enrollment = int(self.driver.find_element_by_xpath('//tbody/tr[%d]/td[6]' % (self.teacher_row + 1)).text)
             current_enrollment = int(self.driver.find_element_by_xpath('//tbody/tr[%d]/td[9]' % (self.teacher_row + 1)).text)
             return current_enrollment >= max_enrollment
-        except:
-            print_and_log(u'错误：自动选课阶段无法获取计划人数与确定人数，可能是您输入的教师行数不存在！')
-            self.error_exit()
+        except Exception:
+            self.error_exit('错误：自动选课阶段无法获取计划人数与确定人数，可能是您输入的教师行数不存在！')
 
     def auto_elect_course(self):
         try:
-            print u'\n开始自动刷新...'
-            write_log('开始自动刷新。')
-            log.flush()
+            cl.progress('开始自动刷新...')
+            logger.info('开始自动刷新。')
+
             while True:
                 if self.auto_relogin:
                     self.t2 = datetime.datetime.now()
+
                     if (self.t2 - self.t1).seconds > self.relogin_interval * 60:
-                        print
-                        print_and_log(u'即将自动重新登录。')
+                        print_and_log_info('即将自动重新登录。')
                         return False
-                try:
-                    course_radio = WaitForElement(self.driver, By.XPATH, '//input[@value="%s"]' % (self.course_id))
-                    course_radio.click()
-                except:
-                    print u'错误：无法获取页面元素！\n'
-                    print u'这可能是以下3种原因导致的：'
-                    print u'(1)定位的页面不正确。'
-                    print u'(2)您输入的课程代码不存在。'
-                    print u'(3)网络不畅通。'
-                    write_log('错误：自动选课阶段无法获取页面元素。')
-                    self.error_exit()
-                if not self.electsys_pp_on:
-                    arrangement = self.driver.find_element_by_xpath(u'//input[@value="课程安排"]')
-                    arrangement.click()
-                try:
-                    button = WaitForElement(self.driver, By.XPATH, u'//input[@value="选定此教师"]')
-                except:
-                    self.driver.back()
-                    continue
 
-                status = self.check_status()
+                # Should not click, will be buggy when Electsys++ is on
+                self.driver.execute_script("document.querySelector('input[value=\"%s\"]').checked = true" % self.course_id)
+                self.driver.find_element_by_css_selector('input[value="课程安排"]').click()
+                self.wait_for_page_load()
 
-                if not status:
-                    result = re.findall(r'value="(\d+)"', self.driver.page_source)
-                    teacher_id = result[self.teacher_row - 1]
-                    teacher_radio = self.driver.find_element_by_xpath('//input[@value=%s]' % (teacher_id))
-                    teacher_radio.click()
-                    time.sleep(1.5)
-                    select_button = self.driver.find_element_by_xpath(u'//input[@value="选定此教师"]')
-                    select_button.click()
-                    try:
-                        submit_button = WaitForElement(self.driver, By.XPATH, u'//input[@value="选课提交"]')
-                        print
-                        print_and_log(u'已选定课程%s的教师。' % (self.course_id))
-                        break
-                    except:
-                        self.driver.back()
+                try:
+                    self.driver.find_element_by_css_selector('input[value="选定此教师"]')
+                except NoSuchElementException:  # Bad page, try again.
+                    logger.debug('查看课程安排时页面错误，即将重试。')
+                else:
+                    status = self.check_status()
+
+                    if not status:
+                        result = re.findall(r'value="(\d+)"', self.driver.page_source)
+                        teacher_id = result[self.teacher_row - 1]
+                        self.driver.find_element_by_css_selector('input[value="%s"]' % teacher_id).click()
+                        time.sleep(2)
+                        self.driver.find_element_by_css_selector('input[value="选定此教师"]').click()
+                        self.wait_for_page_load()
+
+                        try:
+                            self.driver.find_element_by_css_selector('input[value="选课提交"]')
+                        except NoSuchElementException:  # If bad page, try again.
+                            logger.debug('选定教师时页面错误，即将重试。')
+                            self.driver.back()
+                        else:
+                            print_and_log_info('已选定课程 %s 的教师。' % self.course_id)
+                            break
+
                 self.driver.back()
-                time.sleep(self.sleep_time / 1000.0)
-            submit_button = self.driver.find_element_by_xpath(u'//input[@value="选课提交"]')
-            submit_button.click()
-            print
-            print_and_log(u'已提交选课%s！' % (self.course_id))
-            alert_msg(u'提示', u'已提交选课%s！' % (self.course_id))
+                time.sleep(self.sleep_time)
+
+            time.sleep(2)
+            self.driver.find_element_by_css_selector('input[value="选课提交"]').click()
+            self.wait_for_page_load()
+            submit_msg = '已提交选课 %s！' % self.course_id
+            cl.success(submit_msg)
+            logger.info(submit_msg)
+            alert_msg('AutoElectsys 提示', submit_msg)
             return True
+        except NoSuchElementException:
+            self.error_exit('错误：自动选课阶段无法获取页面元素！定位的页面可能不正确，或您输入的课程代码不存在。')
 
-        except (NoSuchElementException, TimeoutException):
-            print u'错误：无法获取页面元素！\n'
-            print u'这可能是以下2种原因导致的：'
-            print u'(1)定位的页面不正确。'
-            print u'(2)网络不畅通。'
-            write_log('错误：自动选课阶段无法获取页面元素。')
-            self.error_exit()
-
-    def logout(self):
+    def logout(self, log=True):
         self.driver.get('http://electsys.sjtu.edu.cn/edu/logOut.aspx')
-        title = WaitForElement(self.driver, By.XPATH, '//title')
         self.logged_in = False
-        print u'已登出。\n'
-        try:
-            write_log('已登出。')
-        except:
-            pass
 
-    def error_exit(self, msg = ''):
-        try:
-            if msg != '':
-                print_and_log(msg)
-            write_log('程序遇到错误而退出。')
-            log.write('\n---------------------------------------------------------\n')
-            log.close()
-            if self.logged_in:
-                print u'\n请按 Enter 键注销本次登录并退出...',
-            else:
-                print u'\n请按 Enter 键退出...',
-            raw_input()
-        except:
-            pass
+        if log:
+            print_and_log_info('已登出。')
+
+    def error_exit(self, msg, with_exc_info=True):
+        if with_exc_info:
+            logger.exception(msg)
+            traceback.print_exc()
+        else:
+            logger.error(msg)
+
+        cl.error(msg)
+
+        logger.critical('程序遇到错误而退出。')
+
         if self.logged_in:
-            self.logout()
+            cl.input('请按 Enter 键注销本次登录并退出...')
+            self.logout(log=False)
             time.sleep(1)
+        else:
+            cl.input('请按 Enter 键退出...')
+
+        if self.driver:
             self.driver.quit()
-        raise SystemExit
+
+        sys.exit(1)
 
     def success_exit(self):
-        try:
-            write_log('程序正常退出。')
-            log.write('\n---------------------------------------------------------\n')
-            log.close()
-            if self.logged_in:
-                print u'\n请按 Enter 键注销本次登录并退出...',
-            else:
-                print u'\n请按 Enter 键退出...',
-            raw_input()
-        except:
-            pass
+        logger.info('程序正常退出。')
+
         if self.logged_in:
-            self.logout()
+            cl.input('请按 Enter 键注销本次登录并退出...')
+            self.logout(log=False)
             time.sleep(1)
-            self.driver.quit()
+        else:
+            cl.input('请按 Enter 键退出...')
+
+        self.driver.quit()
+
 
 def main():
     ae = AutoElectsys()
+
     if ae.browse_only:
         ae.login()
         ae.readme()
-        print u'提示：未填写课程代码，已进入仅浏览模式。'
+        cl.info('提示：未填写课程代码，已进入仅浏览模式。')
     else:
         while True:
             ae.login()
             ae.readme()
             ae.locate_course_page()
+
             if ae.auto_elect_course():
                 break
+
             ae.logout()
             time.sleep(1)
+
     ae.success_exit()
 
+
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print()
+        print_and_log_warning('用户中断程序。')
+        cl.input('请按 Enter 键退出...')
+    except Exception:
+        traceback.print_exc()
+        cl.error('发生未预期的错误')
+        logger.exception('未预期的错误')
+        cl.input('请按 Enter 键退出...')
