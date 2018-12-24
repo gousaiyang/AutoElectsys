@@ -1,17 +1,15 @@
 import base64
 import contextlib
 import os
+import re
 import sys
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from AutoElectsysUtil import (config_file_name, file_read_json, file_read_lines, file_write_json,
-                              file_write_lines, is_positive_int, pswd_file_name, remove_utf8_bom)
+from AutoElectsysUtil import (config_file_name, course_rounds, file_read_json, file_read_lines, file_write_json,
+                              file_write_lines, first_categories, is_positive_int, pswd_file_name, remove_utf8_bom)
 
 os.chdir(os.path.dirname(os.path.realpath(sys.argv[0])))
-
-course_rounds = ('其他', '海选', '抢选', '第三轮选课', '小学期海选', '小学期抢选', '小学期第三轮选课')
-first_categories = ('必修课', '限选课', '通识课', '任选课', '新生研讨课')
 
 default_pswd_choice = 0
 default_captcha = 0
@@ -19,7 +17,7 @@ default_relogin_interval = 60
 default_teacher_row = 1
 default_round = 2
 default_first_category = 3
-default_sleep = 900
+default_sleep = 2000
 
 
 class AutoElectsysConfig:
@@ -414,6 +412,7 @@ class AutoElectsysConfig:
         try:
             cf_course_id = config['CourseInfo']['course_id']
             assert isinstance(cf_course_id, str)
+            assert re.fullmatch('[A-Za-z0-9]*', cf_course_id)
             self.course_id_v.set(cf_course_id)
         except Exception:
             self.config_file_valid = False
@@ -525,7 +524,13 @@ class AutoElectsysConfig:
 
         config['Login']['relogin_interval'] = int(cf_relogin_interval)
 
-        config['CourseInfo']['course_id'] = self.course_id_v.get().strip()
+        cf_course_id = self.course_id_v.get().strip()
+
+        if not re.fullmatch('[A-Za-z0-9]*', cf_course_id):
+            messagebox.showwarning('错误', '课程代码只能包含字母和数字！')
+            return
+
+        config['CourseInfo']['course_id'] = cf_course_id
 
         cf_teacher_row = self.teacher_row_v.get().strip()
 
