@@ -87,3 +87,12 @@ def alert_msg(title, content):
     root.withdraw()
     messagebox.showinfo(title, content)
     root.destroy()
+
+
+class ValidationError(Exception):
+    pass
+
+
+def general_validation(requirement):
+    if not requirement:
+        raise ValidationError

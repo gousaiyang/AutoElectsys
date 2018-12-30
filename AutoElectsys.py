@@ -16,8 +16,8 @@ from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support.wait import WebDriverWait
 
 from AutoElectsysUtil import (alert_msg, config_file_name, course_rounds, dependency_dir, file_read_json,
-                              file_read_lines, is_64bit, is_mac, is_windows, log_file_name, pswd_file_name,
-                              remove_utf8_bom, remove_whitespace)
+                              file_read_lines, general_validation, is_64bit, is_mac, is_windows, log_file_name,
+                              pswd_file_name, remove_utf8_bom, remove_whitespace)
 
 os.chdir(os.path.dirname(os.path.realpath(sys.argv[0])))
 
@@ -95,7 +95,7 @@ class AutoElectsys:
             config = file_read_json(config_file_name)
 
             self.password_saved = config['Login']['password_saved']
-            assert isinstance(self.password_saved, bool)
+            general_validation(isinstance(self.password_saved, bool))
 
             self.user_data = self.password_saved
 
@@ -106,24 +106,24 @@ class AutoElectsys:
                     self.error_exit('错误：找不到 Chrome 用户文件夹，请确认 Chrome 是否正常安装。', with_exc_info=False)
 
             self.autocaptcha_on = config['Login']['auto_captcha']
-            assert isinstance(self.autocaptcha_on, bool)
+            general_validation(isinstance(self.autocaptcha_on, bool))
 
             self.relogin_interval = config['Login']['relogin_interval']
-            assert isinstance(self.relogin_interval, int) and self.relogin_interval >= 0
+            general_validation(isinstance(self.relogin_interval, int) and self.relogin_interval >= 0)
 
             self.auto_relogin = self.relogin_interval > 0
 
             self.course_id = config['CourseInfo']['course_id']
-            assert isinstance(self.course_id, str) and re.fullmatch('[A-Za-z0-9]*', self.course_id)
+            general_validation(isinstance(self.course_id, str) and re.fullmatch('[A-Za-z0-9]*', self.course_id))
 
             self.teacher_row = config['CourseInfo']['teacher_row']
-            assert isinstance(self.teacher_row, int) and self.teacher_row > 0
+            general_validation(isinstance(self.teacher_row, int) and self.teacher_row > 0)
 
             self.round = config['CourseLocate']['round']
-            assert isinstance(self.round, int) and self.round in range(0, 7)
+            general_validation(isinstance(self.round, int) and self.round in range(0, 7))
 
             self.auto_locate = config['CourseLocate']['auto_locate']
-            assert isinstance(self.auto_locate, bool)
+            general_validation(isinstance(self.auto_locate, bool))
 
             if (not self.autocaptcha_on or not self.auto_locate) and self.auto_relogin:
                 self.error_exit('无效配置项：自动重新登录需要自动识别验证码，并开启选课页面自动定位功能。', with_exc_info=False)
@@ -133,14 +133,14 @@ class AutoElectsys:
                     self.error_exit('无效配置项：自动定位选课页面不支持“其他”选课轮次。', with_exc_info=False)
 
                 self.first_category = config['CourseLocate']['first_category']
-                assert isinstance(self.first_category, int) and self.first_category in (1, 2, 3, 4, 5)
+                general_validation(isinstance(self.first_category, int) and self.first_category in (1, 2, 3, 4, 5))
 
                 if self.first_category in (2, 3, 4):
                     self.second_category = config['CourseLocate']['second_category']
-                    assert isinstance(self.second_category, str)
+                    general_validation(isinstance(self.second_category, str))
 
             self.sleep_time = config['Miscellaneous']['sleep_time']
-            assert isinstance(self.sleep_time, int) and self.sleep_time > 0
+            general_validation(isinstance(self.sleep_time, int) and self.sleep_time > 0)
             self.sleep_time /= 1000
 
             self.browse_only = self.course_id == ''

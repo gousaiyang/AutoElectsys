@@ -7,7 +7,8 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from AutoElectsysUtil import (config_file_name, course_rounds, file_read_json, file_read_lines, file_write_json,
-                              file_write_lines, first_categories, is_positive_int, pswd_file_name, remove_utf8_bom)
+                              file_write_lines, first_categories, general_validation, is_positive_int,
+                              pswd_file_name, remove_utf8_bom)
 
 os.chdir(os.path.dirname(os.path.realpath(sys.argv[0])))
 
@@ -379,7 +380,7 @@ class AutoElectsysConfig:
 
         try:
             cf_pswd_choice = config['Login']['password_saved']
-            assert isinstance(cf_pswd_choice, bool)
+            general_validation(isinstance(cf_pswd_choice, bool))
             self.pswd_choice_v.set(cf_pswd_choice)
         except Exception:
             self.config_file_valid = False
@@ -387,7 +388,7 @@ class AutoElectsysConfig:
 
         try:
             cf_captcha = config['Login']['auto_captcha']
-            assert isinstance(cf_captcha, bool)
+            general_validation(isinstance(cf_captcha, bool))
             self.captcha_v.set(cf_captcha)
         except Exception:
             self.config_file_valid = False
@@ -395,7 +396,7 @@ class AutoElectsysConfig:
 
         try:
             cf_relogin_interval = config['Login']['relogin_interval']
-            assert isinstance(cf_relogin_interval, int) and cf_relogin_interval >= 0
+            general_validation(isinstance(cf_relogin_interval, int) and cf_relogin_interval >= 0)
 
             if cf_relogin_interval == 0:
                 self.relogin_interval_v.set('')
@@ -411,8 +412,7 @@ class AutoElectsysConfig:
 
         try:
             cf_course_id = config['CourseInfo']['course_id']
-            assert isinstance(cf_course_id, str)
-            assert re.fullmatch('[A-Za-z0-9]*', cf_course_id)
+            general_validation(isinstance(cf_course_id, str) and re.fullmatch('[A-Za-z0-9]*', cf_course_id))
             self.course_id_v.set(cf_course_id)
         except Exception:
             self.config_file_valid = False
@@ -420,7 +420,7 @@ class AutoElectsysConfig:
 
         try:
             cf_teacher_row = config['CourseInfo']['teacher_row']
-            assert isinstance(cf_teacher_row, int) and cf_teacher_row > 0
+            general_validation(isinstance(cf_teacher_row, int) and cf_teacher_row > 0)
             self.teacher_row_v.set(str(cf_teacher_row))
         except Exception:
             self.config_file_valid = False
@@ -428,7 +428,7 @@ class AutoElectsysConfig:
 
         try:
             cf_round = config['CourseLocate']['round']
-            assert isinstance(cf_round, int) and cf_round in range(0, 7)
+            general_validation(isinstance(cf_round, int) and cf_round in range(0, 7))
             self.round_v.set(course_rounds[cf_round])
         except Exception:
             self.config_file_valid = False
@@ -436,7 +436,7 @@ class AutoElectsysConfig:
 
         try:
             cf_auto_locate = config['CourseLocate']['auto_locate']
-            assert isinstance(cf_auto_locate, bool)
+            general_validation(isinstance(cf_auto_locate, bool))
             self.autolocate_v.set(cf_auto_locate)
         except Exception:
             self.config_file_valid = False
@@ -445,13 +445,13 @@ class AutoElectsysConfig:
 
         try:
             cf_first_category = config['CourseLocate']['first_category']
-            assert isinstance(cf_first_category, int) and cf_first_category in (1, 2, 3, 4, 5)
+            general_validation(isinstance(cf_first_category, int) and cf_first_category in (1, 2, 3, 4, 5))
             self.first_cat_v.set(first_categories[cf_first_category - 1])
 
             if cf_first_category in (2, 3, 4):
                 try:
                     cf_second_category = config['CourseLocate']['second_category']
-                    assert isinstance(cf_second_category, str)
+                    general_validation(isinstance(cf_second_category, str))
                     self.second_cat_v.set(cf_second_category)
                 except Exception:
                     self.config_file_valid = False
@@ -462,7 +462,7 @@ class AutoElectsysConfig:
 
         try:
             cf_sleep = config['Miscellaneous']['sleep_time']
-            assert isinstance(cf_sleep, int) and cf_sleep > 0
+            general_validation(isinstance(cf_sleep, int) and cf_sleep > 0)
             self.sleep_v.set(str(cf_sleep))
         except Exception:
             self.config_file_valid = False
