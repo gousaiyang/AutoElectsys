@@ -1,47 +1,41 @@
 # AutoElectsys
 
-## 使用环境
+上海交通大学 1999-2018 版本科教学信息服务网自动选课工具（对 2019 新版网站不可用）
 
-- 操作系统：Windows/Linux/Mac
-- Python版本：Python 2.7
+## 支持环境
 
-## 安装依赖项
+- 操作系统：Windows/Linux/macOS
+- Python 3.4 或更高版本
+- Chrome 浏览器
 
-### Chrome 浏览器
+## 安装
 
-可从[Chrome 官方网站](http://www.google.cn/chrome/browser/)下载。
+克隆本仓库，或下载本项目的 ZIP 包，然后执行以下操作：
+
+### Python 依赖库
+
+- 执行 `pip3 install -r requirements.txt` 以安装本程序的 Python 依赖库
+- 您还需要确保 Python 的 `tkinter` 库可用，可能需要安装软件包，如 Debian/Ubuntu：`sudo apt-get install python3-tk`
 
 ### ChromeDriver
 
-- ChromeDriver 用于驱动 Chrome 浏览器。本程序的 `dependency` 目录下面已经附有适用于各个操作系统的 ChromeDriver，无须自行下载。
-- 然而需要注意的是，__ChromeDriver 的版本必须与 Chrome 相匹配__，若启动 Chrome 出错，请从 [ChromeDriver 官网](https://sites.google.com/a/chromium.org/chromedriver/)（可能需要科学上网）自行下载与您的 Chrome 版本相匹配的 ChromeDriver，并__替换本程序__ `dependency` __目录下的相应文件__。
+本程序使用 ChromeDriver 以自动控制 Chrome 浏览器。由于其官方网站可能需要科学上网，本程序已经自带一份 ChromeDriver（在 `dependency` 目录中），并会不定期更新。**您需要确认本程序附带的 ChromeDriver 与您的 Chrome 版本相匹配**（参见 `dependency/chromedriver_version.txt` 并查看您的 Chrome 版本）。若不匹配，请自行前往 [ChromeDriver 官网](https://sites.google.com/a/chromium.org/chromedriver/) 下载匹配的版本，并替换本程序 `dependency` 目录下的（对应于您的操作系统的）相应文件。Linux/macOS 用户请为 ChromeDriver 程序设置可执行权限。
 
-### 在 Python 中安装 selenium 库
+## 运行
 
-可使用 pip 安装：`pip install selenium`
+### 配置设置
 
-- Windows 系统下 Python 通常自带 pip。若提示“'pip'不是内部或外部命令，也不是可运行的程序或批处理文件”，请将 __Python 的安装目录以及安装目录下的 Scripts 目录__ 都添加至 __环境变量的“系统变量”的 Path__ 中。
-- Linux/Mac 用户若无 pip，请自行安装。
+运行图形界面配置器 `AutoElectsysConfig.pyw` ，按提示进行参数设置。
 
-### 在 Python 中安装 Tkinter 库
+### 自动选课主程序
 
-- Windows 系统下 Python 通常自带 Tkinter 库，无需手动安装。
-- Linux(Debian/Ubuntu): `sudo apt-get install python-tk`
-- Mac: 参见 https://www.python.org/download/mac/tcltk/
+运行自动选课主程序 `AutoElectsys.py`，该程序将启动一个 Chrome 浏览器，并对其进行自动控制以进行选课。使用时请注意控制台窗口的提示。
 
-## 配置
-运行配置器 `AutoElectsysConfig.pyw` ，按提示进行参数设置。
+ChromeDriver 工作时需要在本地监听端口。Windows/macOS 用户如遇到防火墙提示，请点击允许，或临时关闭防火墙。
 
-- Windows 系统下直接双击运行即可。
-- Linux/Mac 用户请从终端运行：`python AutoElectsysConfig.pyw`
+## 许可证与免责声明
 
-## 使用
-
-运行主程序 `AutoElectsys.py`。使用时请注意控制台窗口的提示。
-
-- Windows 系统下直接双击运行即可。若使用过程中弹出“Windows防火墙”对话框，请点击“__允许访问__”，之后可能需要重新打开程序才能正常运行。
-- Linux/Mac 用户请从终端运行：`python AutoElectsys.py`
-
-## 免责声明
-
-使用本程序对您选课造成的一切影响，本程序开发者概不负责，一切后果由您自行承担。一旦使用本程序即视为您已经接受了本免责声明！
+- 本程序源代码遵循 MIT 许可证
+- 本程序附带的 ChromeDriver 的二进制分发遵循其原本的许可证
+- 本程序使用的验证码识别插件 `dependency/SJTU-jAccount-Login-Helper_v0.3.1.crx` 遵循其原本的许可证，该插件项目地址为：https://github.com/stooloveu/jHelper
+- 使用本程序对您选课造成的一切影响，本程序开发者概不负责，一切后果由您自行承担。一旦使用本程序即视为您已经接受了本免责声明！
