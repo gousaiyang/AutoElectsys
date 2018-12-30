@@ -1,5 +1,5 @@
-Version: ChromeDriver v2.43
-Update Date: 2018-10-16
-Supports: Chrome v69-71
+Version: ChromeDriver v2.45
+Update Date: 2018-12-10
+Supports: Chrome v70-72
 -----------------------------------------------------------------------------
 Get update at: https://sites.google.com/a/chromium.org/chromedriver/downloads
