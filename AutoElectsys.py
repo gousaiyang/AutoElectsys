@@ -164,7 +164,10 @@ class AutoElectsys:
                 options.add_extension(jHelper_path)
 
         self.driver = webdriver.Chrome(webdriver_path, options=options, service_log_path=os.devnull)
-        self.driver.maximize_window()
+
+        if not is_mac:  # maximize_window is buggy on macOS
+            self.driver.maximize_window()
+
         self.wait = WebDriverWait(self.driver, 24 * 3600)  # Infinite wait.
 
     def get_user_and_pass(self):
